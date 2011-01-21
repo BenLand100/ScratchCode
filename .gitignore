@@ -1,0 +1,5 @@
+*.ppu
+*.o
+*.obj
+*.tar.gz
+*.class
