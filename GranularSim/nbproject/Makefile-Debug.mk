@@ -31,7 +31,6 @@ OBJECTDIR=build/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/vec.o \
 	${OBJECTDIR}/main.o
 
 # C Compiler Flags
@@ -48,7 +47,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=
+LDLIBSOPTIONS=-lglut -lGLU
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
@@ -57,10 +56,6 @@ LDLIBSOPTIONS=
 dist/Debug/GNU-Linux-x86/granularsim: ${OBJECTFILES}
 	${MKDIR} -p dist/Debug/GNU-Linux-x86
 	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/granularsim ${OBJECTFILES} ${LDLIBSOPTIONS} 
-
-${OBJECTDIR}/vec.o: nbproject/Makefile-${CND_CONF}.mk vec.cpp 
-	${MKDIR} -p ${OBJECTDIR}
-	$(COMPILE.cc) -g -o ${OBJECTDIR}/vec.o vec.cpp
 
 ${OBJECTDIR}/main.o: nbproject/Makefile-${CND_CONF}.mk main.cpp 
 	${MKDIR} -p ${OBJECTDIR}

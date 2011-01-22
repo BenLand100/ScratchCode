@@ -14,7 +14,6 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>main.cpp</itemPath>
-      <itemPath>vec.cpp</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -33,6 +32,8 @@
       <compileType>
         <linkerTool>
           <linkerLibItems>
+            <linkerOptionItem>-lglut</linkerOptionItem>
+            <linkerOptionItem>-lGLU</linkerOptionItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>
@@ -55,6 +56,7 @@
         </fortranCompilerTool>
         <linkerTool>
           <linkerLibItems>
+            <linkerOptionItem>-lglut</linkerOptionItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>

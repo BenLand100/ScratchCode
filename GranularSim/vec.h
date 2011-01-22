@@ -20,6 +20,10 @@
 #ifndef _VEC_H
 #define	_VEC_H
 
+#include <math.h>
+#include <cstdlib>
+#include <iostream>
+
 typedef struct vec {
     double x, y, z;
 } vec;
@@ -38,6 +42,11 @@ inline double dot(const vec &a, const vec &b) {
 
 inline double mag(const vec &a) {
     return sqrt(dot(a,a));
+}
+
+inline vec norm(const vec &a) {
+    double l = mag(a);
+    return vector(a.x / l, a.y / l, a.z / l);
 }
 
 inline vec cross(const vec &a, const vec &b) {
@@ -66,6 +75,15 @@ inline vec operator*(const double &a,const vec &b) {
 
 inline vec operator*(const vec &a, const double &b) {
     return vector(a.x*b,a.y*b,a.z*b);
+}
+
+inline vec operator/(const vec &a, const double &b) {
+    return vector(a.x/b,a.y/b,a.z/b);
+}
+
+inline std::ostream& operator<<(std::ostream &stream, const vec v) {
+    stream << '<' << v.x << ',' << v.y << ',' << v.z << '>';
+    return stream;
 }
 
 #endif	/* _VEC_H */
