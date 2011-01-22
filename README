@@ -1,0 +1,10 @@
+This repository is basically a collection of stuff I wrote that I never finished
+(which is most of what I write), or, more accurately, never made a releasable 
+version/demonstration/gui for the code. There are lots of cool things in here 
+and many helpful bits of code. All the Project Euler solutions I make will go 
+here, along with IRC bots I work on. There is a lisp ircd, pascal maze solving
+algorithms, a pascal OCR library, java 2D perspective transformations, some
+edge detection, physics simulations, and other random stuff.
+
+Enjoy!
+~Benjamin Land

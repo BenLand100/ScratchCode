@@ -1,3 +1,22 @@
+;;;
+ ;  Copyright 2011 by Benjamin J. Land (a.k.a. BenLand100)
+ ;
+ ;  This file is part of ScratchCode.
+ ;
+ ;  ScratchCode is free software: you can redistribute it and/or modify
+ ;  it under the terms of the GNU General Public License as published by
+ ;  the Free Software Foundation, either version 3 of the License, or
+ ;  (at your option) any later version.
+ ;
+ ;  ScratchCode is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with ScratchCode. If not, see <http://www.gnu.org/licenses/>.
+;;;
+
 ; 2009/6/17 20:37:57 BenLand100
 (setf (gethash "part" *user-command-handlers*) (cons #'(lambda (nick user host dest cmd-tok) (handler-case (send-line "PART ~a" (next-token cmd-tok #\Return)) (condition (ex) (privmsg dest "Error-part: ~a" ex) ) ) ) 50) )
 ;Binding Command part @ 50
