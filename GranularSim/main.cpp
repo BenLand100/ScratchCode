@@ -93,7 +93,7 @@ void drawScene() {
     double h = s.height;
     double d = s.depth;
     glTranslatef(0.0f,0.0f,-2.0f);
-    glColor3f(1,0,0);
+    glColor3f(1,1,1);
     glBegin(GL_QUADS);
     glVertex3f(-0.5,-0.5,0);
     glVertex3f(-0.5,-0.5,-1);
@@ -108,10 +108,24 @@ void drawScene() {
     glEnd();
     glBegin(GL_QUADS);
     glVertex3f(0.5,0.5,-1);
+    glVertex3f(0.5,0.5,0);
+    glVertex3f(-0.5,0.5,0);
+    glVertex3f(-0.5,0.5,-1);
+    glEnd();
+    glBegin(GL_QUADS);
+    glVertex3f(0.5,-0.5,-1);
+    glVertex3f(0.5,-0.5,0);
+    glVertex3f(-0.5,-0.5,0);
+    glVertex3f(-0.5,-0.5,-1);
+    glEnd();
+    glColor3f(0.9,0.9,0.9);
+    glBegin(GL_QUADS);
+    glVertex3f(0.5,0.5,-1);
     glVertex3f(0.5,-0.5,-1);
     glVertex3f(-0.5,-0.5,-1);
     glVertex3f(-0.5,0.5,-1);
     glEnd();
+    glColor3f(0,0,1);
     for (int i = 0; i < num; i++, o++) {
         glTranslatef(o->pos.x/w-0.5,o->pos.y/w-0.5,-o->pos.z/d);
         glutSolidSphere(o->radius/500.0,32,32);
@@ -129,29 +143,29 @@ void update(int value) {
         vec accel = vector(0,0,0);
         o->velo = o->velo + accel * s.dt;
         o->pos = o->pos + o->velo * s.dt;
-        if (o->pos.x > s.width) {
+        if (o->pos.x + o->radius > s.width) {
             o->velo.x = -o->velo.x;
-            o->pos.x=2*s.width-o->pos.x;
+            o->pos.x=2*(s.width-o->radius)-o->pos.x;
         }
-        if (o->pos.x < 0) {
+        if (o->pos.x - o->radius < 0) {
             o->velo.x = -o->velo.x;
-            o->pos.x=-o->pos.x;
+            o->pos.x=2*o->radius-o->pos.x;
         }
-        if (o->pos.y > s.height) {
+        if (o->pos.y + o->radius > s.height) {
             o->velo.y = -o->velo.y;
-            o->pos.y=2*s.height-o->pos.y;
+            o->pos.y=2*(s.height-o->radius)-o->pos.y;
         }
-        if (o->pos.y < 0) {
+        if (o->pos.y - o->radius < 0) {
             o->velo.y = -o->velo.y;
-            o->pos.y=-o->pos.y;
+            o->pos.y=2*o->radius-o->pos.y;
         }
-        if (o->pos.z > s.depth) {
+        if (o->pos.z + o->radius > s.depth) {
             o->velo.z = -o->velo.z;
-            o->pos.z=2*s.depth-o->pos.z;
+            o->pos.z=2*(s.depth-o->radius)-o->pos.z;
         }
-        if (o->pos.z < 0) {
+        if (o->pos.z - o->radius < 0) {
             o->velo.z = -o->velo.z;
-            o->pos.z=-o->pos.z;
+            o->pos.z=2*o->radius-o->pos.z;
         }
         obj* c = s.objs;
         for (int j = 0; j < num; j++, c++) {
@@ -172,8 +186,33 @@ int main(int argc, char** argv) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(500, 500);
     glutCreateWindow("GranularSim");
+
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHT1);
+    glEnable(GL_COLOR_MATERIAL);
+    glShadeModel(GL_SMOOTH);
+    
+    GLfloat ambient0[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambient0);
+    GLfloat diffuse0[] = {0.8f, 0.8f, 0.8f , 1.0f};
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse0);
+    GLfloat specular0[] = {0.9f, 0.9f, 0.9f , 1.0f};
+    glLightfv(GL_LIGHT0, GL_SPECULAR, specular0);
+    GLfloat position0[] = { 0.5f, 0.5f, -1.0f, 0.7f };
+    glLightfv(GL_LIGHT0, GL_POSITION, position0);
+
+    GLfloat ambient1[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    glLightfv(GL_LIGHT1, GL_AMBIENT, ambient1);
+    GLfloat diffuse1[] = {0.8f, 0.8f, 0.8f , 1.0f};
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuse1);
+    GLfloat specular1[] = {0.0f, 0.0f, 0.0f , 1.0f};
+    glLightfv(GL_LIGHT1, GL_SPECULAR, specular1);
+    GLfloat position1[] = { 0.0f, 0.0f, -1.0f, 0.33f };
+    glLightfv(GL_LIGHT1, GL_POSITION, position1);
+
+
 
     glutDisplayFunc(drawScene);
     glutKeyboardFunc(handleKeypress);
