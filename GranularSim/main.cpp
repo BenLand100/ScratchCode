@@ -17,7 +17,8 @@
  *  along with GranularSim. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <GL/glut.h>
 #include "vec.h"
@@ -26,27 +27,45 @@ using namespace std;
 
 typedef struct obj {
     vec velo,pos;
-    double mass, radius, elasticity;
 } obj;
+
+typedef struct state {
+    vec *a,*b,*delta,*velo;
+    int **hit;
+} state;
 
 typedef struct sim {
     int numobjs;
     obj* objs;
+    state c;
     double dt, t;
     double width, height, depth;
+    double mass, radius, elasticity;
 } sim;
 
 sim s;
 
 void init(sim* sim) {
-    int size = 10;
-    int mass = 5;
-    int count = 500;
+    int count = 15*15;
     int maxcomp = round(sqrt(5000));
     int domain = 500;
-    double elasticity = 0.5;
+
+    sim->elasticity = 0.5;
+    sim->radius = 10;
+    sim->mass = 5;
+
+    sim->c.a = new vec[count];
+    sim->c.b = new vec[count];
+    sim->c.delta = new vec[count];
+    sim->c.velo = new vec[count];
+    sim->c.hit = new int*[count];
+    for (int i = 0; i < count; i++) {
+        sim->c.hit[i] = new int[count];
+    }
 
     srand(time(0));
+
+    sim->t = 0;
     sim->dt = 0.05;
     sim->numobjs = count;
     sim->objs = new obj[count];
@@ -57,10 +76,7 @@ void init(sim* sim) {
             obj *o = &sim->objs[x+y*dim];
             o->velo = vector(0,0,0);
             o->velo = vector(rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp);
-            o->mass = mass;
-            o->radius = size;
-            o->elasticity = elasticity;
-            o->pos = vector((double)x*domain/dim,(double)y*domain/dim,domain/2.0);
+            o->pos = vector((double)x*(domain-sim->radius*2)/(dim-1) + sim->radius,(double)y*(domain-sim->radius*2)/(dim-1) + sim->radius,domain/2.0);
         }
     }
 }
@@ -130,50 +146,131 @@ void drawScene() {
     glColor3f(0,0,1);
     for (int i = 0; i < num; i++, o++) {
         glTranslatef(o->pos.x/w-0.5,o->pos.y/w-0.5,-o->pos.z/d);
-        glutSolidSphere(o->radius/500.0,32,32);
+        glutSolidSphere(s.radius/500.0,32,32);
         glTranslatef(-o->pos.x/w+0.5,-o->pos.y/w+0.5,o->pos.z/d);
     }
     glutSwapBuffers();
 }
 
 void update(int value) {
-    int num = s.numobjs;
-    obj* o = s.objs;
-    for (int i = 0; i < num; i++, o++) {
-        vec accel = vector(0,0,-100);
+    /*vec accel = vector(0,0,0);
+    for (int i = 0; i < s.numobjs; i++) {
+        s.c.a[i] = s.objs[i].pos;
+        s.c.velo[i] = s.objs[i].velo + accel * s.dt;
+        s.c.delta[i] = s.c.velo[i] * s.dt;
+        s.c.b[i] = s.c.a[i] + s.c.delta[i];
+        memset(s.c.hit[i],0,s.numobjs*sizeof(int));
+    }
+    //this should be done with kd-trees
+    for (int i = 0; i < s.numobjs; i++) {
+        vec pos = s.c.b[i];
+        if (pos.x + s.radius > s.width) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].x = -s.c.velo[i].x;
+            pos.x=2*(s.width-s.radius)-pos.x;
+            s.c.b[i] = pos;
+        } else if (pos.x -  s.radius < 0) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].x = -s.c.velo[i].x;
+            pos.x=2*s.radius-pos.x;
+            s.c.b[i] = pos;
+        } else if (pos.y + s.radius > s.height) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].y = -s.c.velo[i].y;
+            pos.y=2*(s.height-s.radius)-pos.y;
+            s.c.b[i] = pos;
+        } else if (pos.y - s.radius < 0) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].y = -s.c.velo[i].y;
+            pos.y=2*s.radius-pos.y;
+            s.c.b[i] = pos;
+        } else if (pos.z + s.radius > s.depth) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].z = -s.c.velo[i].z;
+            pos.z=2*(s.depth-s.radius)-pos.z;
+            s.c.b[i] = pos;
+        } else if (pos.z - s.radius < 0) {
+            s.c.velo[i] = s.c.velo[i] * s.elasticity;
+            s.c.velo[i].z = -s.c.velo[i].z;
+            pos.z=2*s.radius-pos.z;
+            s.c.b[i] = pos;
+        }
+        double dist2 = s.radius*2 + mag(s.c.delta[i]);
+        dist2 *= dist2;
+        for (int j = 0; j < s.numobjs; j++) {
+            vec a = s.c.a[j]-pos;
+            vec b = s.c.b[j]-pos;
+            if ((a*a < dist2 || b*b < dist2) && i != j && !s.c.hit[min(i,j)][max(i,j)]) {
+                vec d0 = s.c.a[i] - s.c.a[j];
+                vec d = s.c.velo[i] - s.c.velo[j];
+                double _a = d*d;
+                double _b = 2*d0*d;
+                double _c = d*d-4*s.radius*s.radius;
+                double desc = _b*_b-4*_a*_c;
+                if (_a == 0 && desc < 0) continue;
+                double t1 = (-_b+sqrt(desc))/(2.0*_a);
+                double t2 = (-_b-sqrt(desc))/(2.0*_a);
+                //cout << desc << " t1=" << t1 << " t2=" << t2 << '\n';
+                double t = min(t1 > 0 ? t1 : t2, t2 > 0 ? t2 : t1);
+                if (t > 0 && t < s.dt) {
+                    double rt = s.dt - t;
+                    vec icur = s.c.a[i] + s.c.velo[i]*t;
+                    vec jcur = s.c.a[j] + s.c.velo[j]*t;
+                    vec dir = norm(jcur - icur);
+                    cout << mag(jcur-icur) << '\n';
+                    double momi = (s.c.velo[i] * dir) * s.elasticity;
+                    double momj = (s.c.velo[j] * dir) * s.elasticity;
+                    double ex = momj - momi;
+                    s.c.velo[i] = s.c.velo[i] + ex*dir;
+                    s.c.velo[j] = s.c.velo[j] - ex*dir;
+                    s.c.b[i] = icur + s.c.velo[i]*rt;
+                    s.c.b[j] = jcur + s.c.velo[j]*rt;
+                    s.c.hit[min(i,j)][max(i,j)] = 1;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < s.numobjs; i++) {
+        s.objs[i].velo = s.c.velo[i];
+        s.objs[i].pos = s.c.b[i];
+    }*/
+    vec accel = vector(0,-200,0);
+    obj *o = s.objs;
+    for (int i = 0; i < s.numobjs; i++, o++) {
         o->velo = o->velo + accel * s.dt;
         o->pos = o->pos + o->velo * s.dt;
-        if (o->pos.x + o->radius > s.width) {
-            o->velo = o->velo * o->elasticity;
+        if (o->pos.x + s.radius > s.width) {
+            o->velo = o->velo * s.elasticity;
             o->velo.x = -o->velo.x;
-            o->pos.x=2*(s.width-o->radius)-o->pos.x;
-        } else if (o->pos.x - o->radius < 0) {
-            o->velo = o->velo * o->elasticity;
+            o->pos.x=2*(s.width-s.radius)-o->pos.x;
+        } else if (o->pos.x - s.radius < 0) {
+            o->velo = o->velo * s.elasticity;
             o->velo.x = -o->velo.x;
-            o->pos.x=2*o->radius-o->pos.x;
-        } else if (o->pos.y + o->radius > s.height) {
-            o->velo = o->velo * o->elasticity;
+            o->pos.x=2*s.radius-o->pos.x;
+        } else if (o->pos.y + s.radius > s.height) {
+            o->velo = o->velo * s.elasticity;
             o->velo.y = -o->velo.y;
-            o->pos.y=2*(s.height-o->radius)-o->pos.y;
-        } else if (o->pos.y - o->radius < 0) {
-            o->velo = o->velo * o->elasticity;
+            o->pos.y=2*(s.height-s.radius)-o->pos.y;
+        } else if (o->pos.y - s.radius < 0) {
+            o->velo = o->velo * s.elasticity;
             o->velo.y = -o->velo.y;
-            o->pos.y=2*o->radius-o->pos.y;
-        } else if (o->pos.z + o->radius > s.depth) {
-            o->velo = o->velo * o->elasticity;
+            o->pos.y=2*s.radius-o->pos.y;
+        } else if (o->pos.z + s.radius > s.depth) {
+            o->velo = o->velo * s.elasticity;
             o->velo.z = -o->velo.z;
-            o->pos.z=2*(s.depth-o->radius)-o->pos.z;
-        } else if (o->pos.z - o->radius < 0) {
-            o->velo = o->velo * o->elasticity;
+            o->pos.z=2*(s.depth-s.radius)-o->pos.z;
+        } else if (o->pos.z - s.radius < 0) {
+            o->velo = o->velo * s.elasticity;
             o->velo.z = -o->velo.z;
-            o->pos.z=2*o->radius-o->pos.z;
+            o->pos.z=2*s.radius-o->pos.z;
         }
-        obj* c = s.objs;
-        for (int j = 0; j < num; j++, c++) {
-            if (mag(o->pos-c->pos) <= (o->radius+c->radius) && i != j) {
+        obj* c = &s.objs[i+1];
+        for (int j = i+1; j < s.numobjs; j++, c++) {
+            if (mag(o->pos-c->pos) <= (s.radius*2)) {
                 vec dir = norm(c->pos - o->pos);
-                double momo = (o->velo * dir) * c->elasticity;
-                double momc = (c->velo * dir) * o->elasticity;
+                double momo = (o->velo * dir) * s.elasticity;
+                double momc = (c->velo * dir) * s.elasticity;
                 double ex = momc - momo;
                 o->velo = o->velo + ex*dir;
                 c->velo = c->velo - ex*dir;
