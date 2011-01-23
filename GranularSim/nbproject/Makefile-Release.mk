@@ -47,7 +47,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=-lglut
+LDLIBSOPTIONS=-lglut -lGLU
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
@@ -59,7 +59,7 @@ dist/Release/GNU-Linux-x86/granularsim: ${OBJECTFILES}
 
 ${OBJECTDIR}/main.o: nbproject/Makefile-${CND_CONF}.mk main.cpp 
 	${MKDIR} -p ${OBJECTDIR}
-	$(COMPILE.cc) -O2 -o ${OBJECTDIR}/main.o main.cpp
+	$(COMPILE.cc) -O3 -s -o ${OBJECTDIR}/main.o main.cpp
 
 # Subprojects
 .build-subprojects:

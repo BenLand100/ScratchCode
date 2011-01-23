@@ -26,7 +26,7 @@ using namespace std;
 
 typedef struct obj {
     vec velo,pos;
-    double mass, radius;
+    double mass, radius, elasticity;
 } obj;
 
 typedef struct sim {
@@ -41,9 +41,10 @@ sim s;
 void init(sim* sim) {
     int size = 10;
     int mass = 5;
-    int count = 100;
+    int count = 500;
     int maxcomp = round(sqrt(5000));
     int domain = 500;
+    double elasticity = 0.5;
 
     srand(time(0));
     sim->dt = 0.05;
@@ -58,6 +59,7 @@ void init(sim* sim) {
             o->velo = vector(rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp);
             o->mass = mass;
             o->radius = size;
+            o->elasticity = elasticity;
             o->pos = vector((double)x*domain/dim,(double)y*domain/dim,domain/2.0);
         }
     }
@@ -135,35 +137,34 @@ void drawScene() {
 }
 
 void update(int value) {
-    glutPostRedisplay();
-    glutTimerFunc(25, update, 0);
     int num = s.numobjs;
     obj* o = s.objs;
     for (int i = 0; i < num; i++, o++) {
-        vec accel = vector(0,0,0);
+        vec accel = vector(0,0,-100);
         o->velo = o->velo + accel * s.dt;
         o->pos = o->pos + o->velo * s.dt;
         if (o->pos.x + o->radius > s.width) {
+            o->velo = o->velo * o->elasticity;
             o->velo.x = -o->velo.x;
             o->pos.x=2*(s.width-o->radius)-o->pos.x;
-        }
-        if (o->pos.x - o->radius < 0) {
+        } else if (o->pos.x - o->radius < 0) {
+            o->velo = o->velo * o->elasticity;
             o->velo.x = -o->velo.x;
             o->pos.x=2*o->radius-o->pos.x;
-        }
-        if (o->pos.y + o->radius > s.height) {
+        } else if (o->pos.y + o->radius > s.height) {
+            o->velo = o->velo * o->elasticity;
             o->velo.y = -o->velo.y;
             o->pos.y=2*(s.height-o->radius)-o->pos.y;
-        }
-        if (o->pos.y - o->radius < 0) {
+        } else if (o->pos.y - o->radius < 0) {
+            o->velo = o->velo * o->elasticity;
             o->velo.y = -o->velo.y;
             o->pos.y=2*o->radius-o->pos.y;
-        }
-        if (o->pos.z + o->radius > s.depth) {
+        } else if (o->pos.z + o->radius > s.depth) {
+            o->velo = o->velo * o->elasticity;
             o->velo.z = -o->velo.z;
             o->pos.z=2*(s.depth-o->radius)-o->pos.z;
-        }
-        if (o->pos.z - o->radius < 0) {
+        } else if (o->pos.z - o->radius < 0) {
+            o->velo = o->velo * o->elasticity;
             o->velo.z = -o->velo.z;
             o->pos.z=2*o->radius-o->pos.z;
         }
@@ -171,14 +172,16 @@ void update(int value) {
         for (int j = 0; j < num; j++, c++) {
             if (mag(o->pos-c->pos) <= (o->radius+c->radius) && i != j) {
                 vec dir = norm(c->pos - o->pos);
-                double vi = o->velo * dir;
-                double vj = c->velo * dir;
-                double exchange = vj - vi;
-                o->velo = o->velo + exchange*dir;
-                c->velo = c->velo - exchange*dir;
+                double momo = (o->velo * dir) * c->elasticity;
+                double momc = (c->velo * dir) * o->elasticity;
+                double ex = momc - momo;
+                o->velo = o->velo + ex*dir;
+                c->velo = c->velo - ex*dir;
             }
         }
     }
+    glutPostRedisplay();
+    glutTimerFunc(25, update, 0);
 }
 
 int main(int argc, char** argv) {
