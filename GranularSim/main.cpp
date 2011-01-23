@@ -31,7 +31,6 @@ typedef struct obj {
 
 typedef struct state {
     vec *a,*b,*delta,*velo;
-    int **hit;
 } state;
 
 typedef struct sim {
@@ -46,27 +45,23 @@ typedef struct sim {
 sim s;
 
 void init(sim* sim) {
-    int count = 15*15;
+    int count = 10*10;
     int maxcomp = round(sqrt(5000));
     int domain = 500;
 
-    sim->elasticity = 0.5;
-    sim->radius = 10;
+    sim->elasticity = 1.0;
+    sim->radius = 15;
     sim->mass = 5;
 
     sim->c.a = new vec[count];
     sim->c.b = new vec[count];
     sim->c.delta = new vec[count];
     sim->c.velo = new vec[count];
-    sim->c.hit = new int*[count];
-    for (int i = 0; i < count; i++) {
-        sim->c.hit[i] = new int[count];
-    }
 
     srand(time(0));
 
     sim->t = 0;
-    sim->dt = 0.05;
+    sim->dt = 0.005;
     sim->numobjs = count;
     sim->objs = new obj[count];
     sim->width = sim->height = sim->depth = domain;
@@ -159,84 +154,150 @@ void update(int value) {
         s.c.velo[i] = s.objs[i].velo + accel * s.dt;
         s.c.delta[i] = s.c.velo[i] * s.dt;
         s.c.b[i] = s.c.a[i] + s.c.delta[i];
-        memset(s.c.hit[i],0,s.numobjs*sizeof(int));
     }
-
-    //this should be done with kd-trees
-    for (int i = 0; i < s.numobjs; i++) {
-        vec pos = s.c.b[i];
-        if (pos.x + s.radius > s.width) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].x = -s.c.velo[i].x;
-            pos.x=2*(s.width-s.radius)-pos.x;
-            s.c.b[i] = pos;
-        } else if (pos.x -  s.radius < 0) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].x = -s.c.velo[i].x;
-            pos.x=2*s.radius-pos.x;
-            s.c.b[i] = pos;
-        } else if (pos.y + s.radius > s.height) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].y = -s.c.velo[i].y;
-            pos.y=2*(s.height-s.radius)-pos.y;
-            s.c.b[i] = pos;
-        } else if (pos.y - s.radius < 0) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].y = -s.c.velo[i].y;
-            pos.y=2*s.radius-pos.y;
-            s.c.b[i] = pos;
-        } else if (pos.z + s.radius > s.depth) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].z = -s.c.velo[i].z;
-            pos.z=2*(s.depth-s.radius)-pos.z;
-            s.c.b[i] = pos;
-        } else if (pos.z - s.radius < 0) {
-            s.c.velo[i] = s.c.velo[i] * s.elasticity;
-            s.c.velo[i].z = -s.c.velo[i].z;
-            pos.z=2*s.radius-pos.z;
-            s.c.b[i] = pos;
-        }
-        double dist2 = s.radius*2 + mag(s.c.delta[i]);
-        dist2 *= dist2;
-        for (int j = 0; j < s.numobjs; j++) {
-            vec a = s.c.a[j]-pos;
-            vec b = s.c.b[j]-pos;
-            if ((a*a < dist2 || b*b < dist2) && i != j && !s.c.hit[min(i,j)][max(i,j)]) {
-                vec d0 = s.c.a[i] - s.c.a[j];
-                vec d = s.c.velo[i] - s.c.velo[j];
-                double _a = d*d;
-                double _b = 2*d0*d;
-                double _c = d0*d0-4*s.radius*s.radius;
-                double desc = _b*_b-4*_a*_c;
-                if (_a == 0 && desc < 0) continue;
-                double t1 = (-_b+sqrt(desc))/(2.0*_a);
-                double t2 = (-_b-sqrt(desc))/(2.0*_a);
-                //cout << desc << " t1=" << t1 << " t2=" << t2 << '\n';
-                double t = min(t1 > 0 ? t1 : t2, t2 > 0 ? t2 : t1);
-                if (t > 0 && t < s.dt) {
-                    double rt = s.dt - t;
-                    vec icur = s.c.a[i] + s.c.velo[i]*t;
-                    vec jcur = s.c.a[j] + s.c.velo[j]*t;
-                    vec dir = norm(jcur - icur);
-                    //cout << mag(jcur-icur) << '\n';
-                    double momi = (s.c.velo[i] * dir) * s.elasticity;
-                    double momj = (s.c.velo[j] * dir) * s.elasticity;
-                    double ex = momj - momi;
-                    s.c.velo[i] = s.c.velo[i] + ex*dir;
-                    s.c.velo[j] = s.c.velo[j] - ex*dir;
-                    s.c.b[i] = icur + s.c.velo[i]*rt;
-                    s.c.b[j] = jcur + s.c.velo[j]*rt;
-                    s.c.hit[min(i,j)][max(i,j)] = 1;
+    double step = s.dt, tmin = step;
+    int imin, jmin,wall;
+    bool detected = false;
+    do {
+        //cout << "step\n";
+        //this should be done with kd-trees
+        for (int i = 0; i < s.numobjs; i++) {
+            vec pos = s.c.b[i];
+            if (pos.x + s.radius > s.width) {
+                double t = (s.width - (s.c.a[i].x + s.radius)) / s.c.velo[i].x;
+                if (t < step && tmin > t) {
+                    wall = 0;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            if (pos.x -  s.radius < 0) {
+                double t = (0 - (s.c.a[i].x - s.radius)) / s.c.velo[i].x;
+                if (t < step && tmin > t) {
+                    wall = 0;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            if (pos.y + s.radius > s.height) {
+                double t = (s.height - (s.c.a[i].y + s.radius)) / s.c.velo[i].y;
+                if (t < step && tmin > t) {
+                    wall = 1;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            if (pos.y - s.radius < 0) {
+                double t = (0 - (s.c.a[i].y - s.radius)) / s.c.velo[i].y;
+                if (t < step && tmin > t) {
+                    wall = 1;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            if (pos.z + s.radius > s.depth) {
+                double t = (s.depth - (s.c.a[i].z + s.radius)) / s.c.velo[i].z;
+                if (t < step && tmin > t) {
+                    wall = 2;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            if (pos.z - s.radius < 0) {
+                double t = (0 - (s.c.a[i].z - s.radius)) / s.c.velo[i].z;
+                if (t < step && tmin > t) {
+                    wall = 2;
+                    imin = jmin = i;
+                    tmin = t;
+                }
+            }
+            double dist2 = s.radius*2 + mag(s.c.delta[i]);
+            dist2 *= dist2;
+            for (int j = 0; j < s.numobjs; j++) {
+                vec a = s.c.a[j]-pos;
+                vec b = s.c.b[j]-pos;
+                if ((a*a < dist2 || b*b < dist2) && i != j && !(i == jmin && j == imin)) {
+                    vec d0 = s.c.a[i] - s.c.a[j];
+                    vec d = s.c.velo[i] - s.c.velo[j];
+                    double _a = d*d;
+                    double _b = 2*d0*d;
+                    double _c = d0*d0-4*s.radius*s.radius;
+                    double desc = _b*_b-4*_a*_c;
+                    if (_a == 0 && desc < 0) continue;
+                    double t1 = (-_b+sqrt(desc))/(2.0*_a);
+                    double t2 = (-_b-sqrt(desc))/(2.0*_a);
+                    double t = min(t1 > 0 ? t1 : t2, t2 > 0 ? t2 : t1);
+                    if (t >= 1e-10 && t < step && tmin > t) {
+                        //cout << i << ' ' << j << " t=" << t << '\n';
+                        tmin = t;
+                        imin = i;
+                        jmin = j;
+                    }
                 }
             }
         }
-    }
-
+        detected = tmin != step;
+        //cout << "collision\n";
+        if (detected) {
+            //cout << tmin << ' ' << step << " detected\n";
+            int i = imin, j = jmin;
+            if (i == j) { //wall
+                vec velo = s.c.velo[i];
+                s.c.a[i] = s.c.a[i] + velo * tmin;
+                velo = velo * s.elasticity;
+                switch (wall) {
+                    case 0:
+                        velo.x = -velo.x;
+                        break;
+                    case 1:
+                        velo.y = -velo.y;
+                        break;
+                    case 2:
+                        velo.z = -velo.z;
+                        break;
+                }
+                double tr = step - tmin;
+                s.c.velo[i] = velo;
+                s.c.b[i] = s.c.a[i] + velo * tr;
+            } else { //ball
+                vec icur = s.c.a[i] + s.c.velo[i]*tmin;
+                vec jcur = s.c.a[j] + s.c.velo[j]*tmin;
+                vec dir = norm(jcur - icur);
+                //cout << mag(jcur-icur) << '\n';
+                double momi = (s.c.velo[i] * dir) * s.elasticity;
+                double momj = (s.c.velo[j] * dir) * s.elasticity;
+                double ex = momj - momi;
+                s.c.velo[i] = s.c.velo[i] + ex*dir;
+                s.c.velo[j] = s.c.velo[j] - ex*dir;
+                double tr = step - tmin;
+                s.c.a[i] = icur;
+                s.c.a[j] = jcur;
+                s.c.b[i] = s.c.a[i] + s.c.velo[i]*tr;
+                s.c.b[j] = s.c.a[j] + s.c.velo[j]*tr;
+                s.c.delta[i] = s.c.b[i] - s.c.a[i];
+                s.c.delta[j] = s.c.b[j] - s.c.a[j];
+            }
+            int _min = min(i,j), _max = max(i,j);
+            for (int ii = 0; ii < _min; ii++) {
+                s.c.a[ii] = s.c.a[ii] + s.c.velo[ii]*tmin;
+                s.c.delta[ii] = s.c.b[ii] - s.c.a[ii];
+            }
+            for (int ii = _min+1; ii < _max; ii++) {
+                s.c.a[ii] = s.c.a[ii] + s.c.velo[ii]*tmin;
+                s.c.delta[ii] = s.c.b[ii] - s.c.a[ii];
+            }
+            for (int ii = _max+1; ii < s.numobjs; ii++) {
+                s.c.a[ii] = s.c.a[ii] + s.c.velo[ii]*tmin;
+                s.c.delta[ii] = s.c.b[ii] - s.c.a[ii];
+            }
+        }
+        step -= tmin;
+        tmin = step;
+    } while (detected);
     for (int i = 0; i < s.numobjs; i++) {
         s.objs[i].velo = s.c.velo[i];
         s.objs[i].pos = s.c.b[i];
     }
-
     glutPostRedisplay();
     glutTimerFunc(25, update, 0);
 }
