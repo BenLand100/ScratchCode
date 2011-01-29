@@ -35,6 +35,7 @@ class double_pendulum:
 		self._dphi2 = dphi2
 		self._dt = dt
 		self._g = g
+		(self._ddphi1,self._ddphi2) = self._accel(self._phi1,self._phi2,self._dphi1,self._dphi2)
 		self._p1 = sphere(pos=self._orig,color=color.red,radius=1)
 		self._p2 = sphere(pos=self._orig+vector(sin(self._phi1)*self._l1,-cos(self._phi1)*self._l1,0),color=color.blue,radius=1)
 		self._p3 = sphere(pos=self._p2.pos+vector(sin(self._phi2)*self._l2,-cos(self._phi2)*self._l2,0),color=color.green,radius=1)
@@ -56,27 +57,16 @@ class double_pendulum:
 		         dphi2**2*sin(phi1-phi2)) - self._g/self._l1*sin(phi1)
 		return (ddphi1,ddphi2)
 	def step(self):
-		"""Uses a forth order runge-kutta integration to step the pendulum one dt."""
-		(ddphi1_1, ddphi2_1) = self._accel(self._phi1,self._phi2,self._dphi1,self._dphi2)
-		dphi1t = self._dphi1 + ddphi1_1 * self._dt*0.5
-		dphi2t = self._dphi2 + ddphi2_1 * self._dt*0.5
-		phi1t = self._phi1 + dphi1t * self._dt*0.5
-		phi2t = self._phi2 + dphi2t * self._dt*0.5
-		(ddphi1_2, ddphi2_2) = self._accel(phi1t,phi2t,dphi1t,dphi2t)
-		dphi1t = self._dphi1 + ddphi1_2 * self._dt*0.5
-		dphi2t = self._dphi2 + ddphi2_2 * self._dt*0.5
-		phi1t = self._phi1 + dphi1t * self._dt*0.5
-		phi2t = self._phi2 + dphi2t * self._dt*0.5
-		(ddphi1_3, ddphi2_3) = self._accel(phi1t,phi2t,dphi1t,dphi2t)
-		dphi1t = self._dphi1 + ddphi1_3 * self._dt
-		dphi2t = self._dphi2 + ddphi2_3 * self._dt
-		phi1t = self._phi1 + dphi1t * self._dt
-		phi2t = self._phi2 + dphi2t * self._dt
-		(ddphi1_4, ddphi2_4) = self._accel(phi1t,phi2t,dphi1t,dphi2t)
-		self._dphi1 += (ddphi1_1+2.0*ddphi1_2+2.0*ddphi1_3+ddphi1_4)/6.0 * self._dt
-		self._dphi2 += (ddphi2_1+2.0*ddphi2_2+2.0*ddphi2_3+ddphi2_4)/6.0 * self._dt
-		self._phi1 += self._dphi1 * self._dt
-		self._phi2 += self._dphi2 * self._dt
+		"""Uses a second order symplectic integration to step the pendulum one dt."""
+		self._phi1 += self._dphi1*self._dt + 0.5*self._ddphi1*self._dt**2
+		self._phi2 += self._dphi2*self._dt + 0.5*self._ddphi2*self._dt**2
+		self._dphi1 += 0.5*self._ddphi1*self._dt
+		self._dphi2 += 0.5*self._ddphi2*self._dt
+		(self._ddphi1, self._ddphi2) = self._accel(self._phi1,self._phi2,self._dphi1,self._dphi2)
+		self._dphi1 += 0.5*self._ddphi1*self._dt
+		self._dphi2 += 0.5*self._ddphi2*self._dt
+	def __str__(self):
+		return "{Phi =  " + str(self._phi1) + ", Theta = " + str(self._phi2) + "}"
 
 display(title='Chaos (Ideal Double Pendulum)',width=800, height=800)
 scene.range = 19*2
