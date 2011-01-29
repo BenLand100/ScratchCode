@@ -78,12 +78,12 @@ class double_pendulum:
 		self._phi1 += self._dphi1 * self._dt
 		self._phi2 += self._dphi2 * self._dt
 
-
+display(title='Chaos (Ideal Double Pendulum)',width=800, height=800)
+scene.range = 19*2
 a = double_pendulum(orig=vector(-17,-17,0),dphi2=0.0000000)
 b = double_pendulum(orig=vector(17,-17,0), dphi2=0.0000001)
 c = double_pendulum(orig=vector(-17,17,0), dphi2=0.0000002)
 d = double_pendulum(orig=vector(17,17,0),  dphi2=0.0000003)
-scene.range = 17*2
 while True:
 	rate(1000)
 	a.step()
