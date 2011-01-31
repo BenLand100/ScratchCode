@@ -22,7 +22,7 @@ from visual import *
 
 class double_pendulum:
 	"""The world's most entertaining demonstration of chaos."""
-	def __init__(self,orig=vector(0,0,0),l1=10.0,l2=5.0,m1=5.0,m2=1.0,phi1=1.25*pi,phi2=pi,dphi1=0.0,dphi2=0.0,dt=0.002,g=9.81):
+	def __init__(self,orig=vector(0,0,0),l1=10.0,l2=5.0,m1=5.0,m2=1.0,phi1=1.25*pi,phi2=pi,dphi1=0.0,dphi2=0.0,dt=0.025,g=9.81):
 		"""Creates a new double_pendulum with the given values and creates the graphics."""
 		self._orig = orig
 		self._l1 = l1
@@ -36,6 +36,8 @@ class double_pendulum:
 		self._dt = dt
 		self._g = g
 		(self._ddphi1,self._ddphi2) = self._accel(self._phi1,self._phi2,self._dphi1,self._dphi2)
+		self._dphi1 = self._dphi1 - self._ddphi1*dt*0.5
+		self._dphi2 = self._dphi2 - self._ddphi2*dt*0.5
 		self._p1 = sphere(pos=self._orig,color=color.red,radius=1)
 		self._p2 = sphere(pos=self._orig+vector(sin(self._phi1)*self._l1,-cos(self._phi1)*self._l1,0),color=color.blue,radius=1)
 		self._p3 = sphere(pos=self._p2.pos+vector(sin(self._phi2)*self._l2,-cos(self._phi2)*self._l2,0),color=color.green,radius=1)
@@ -56,7 +58,7 @@ class double_pendulum:
 		ddphi1 = -self._l2/self._l1*self._m2/(self._m1+self._m2)*(ddphi2*cos(phi1-phi2) + 
 		         dphi2**2*sin(phi1-phi2)) - self._g/self._l1*sin(phi1)
 		return (ddphi1,ddphi2)
-	def step(self):
+	def step_2sym(self):
 		"""Uses a second order symplectic integration to step the pendulum one dt."""
 		self._phi1 += self._dphi1*self._dt + 0.5*self._ddphi1*self._dt**2
 		self._phi2 += self._dphi2*self._dt + 0.5*self._ddphi2*self._dt**2
@@ -65,6 +67,13 @@ class double_pendulum:
 		(self._ddphi1, self._ddphi2) = self._accel(self._phi1,self._phi2,self._dphi1,self._dphi2)
 		self._dphi1 += 0.5*self._ddphi1*self._dt
 		self._dphi2 += 0.5*self._ddphi2*self._dt
+	def step(self):
+		"""Second order symplectic and symmetric integrator that accounts for acceleration depending on velocity."""
+		self._dphi1 += self._ddphi1*self._dt
+		self._dphi2 += self._ddphi2*self._dt
+		self._phi1 += self._dphi1*self._dt
+		self._phi2 += self._dphi2*self._dt
+		(self._ddphi1, self._ddphi2) = self._accel(self._phi1,self._phi2,self._dphi1+self._ddphi1*self._dt*0.5,self._dphi2+self._ddphi2*self._dt*0.5)
 	def __str__(self):
 		return "{Phi =  " + str(self._phi1) + ", Theta = " + str(self._phi2) + "}"
 
@@ -75,7 +84,7 @@ b = double_pendulum(orig=vector(17,-17,0), dphi2=0.0000001)
 c = double_pendulum(orig=vector(-17,17,0), dphi2=0.0000002)
 d = double_pendulum(orig=vector(17,17,0),  dphi2=0.0000003)
 while True:
-	rate(1000)
+	rate(60)
 	a.step()
 	b.step()
 	c.step()
