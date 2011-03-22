@@ -53,13 +53,13 @@ double objpos(obj *o, int d) {
 }
 
 void init(sim* sim) {
-    int count = 50*50;
-    int maxcomp = round(sqrt(500));
+    int count = 15*15*15;
+    int maxcomp = round(cbrt(500));
     int domain = 500;
 
-    sim->k = 100;
+    sim->k = 50;
     sim->u = 6;
-    sim->radius = 10;
+    sim->radius = 15;
     sim->mass = 5;
 
     sim->force = new vec[count];
@@ -71,13 +71,15 @@ void init(sim* sim) {
     sim->numobjs = count;
     sim->objs = new obj[count];
     sim->width = sim->height = sim->depth = domain;
-    int dim = round(sqrt(count));
+    int dim = round(cbrt(count));
     for (int x = 0; x < dim; x++) {
         for (int y = 0; y < dim; y++) {
-            obj *o = &sim->objs[x+y*dim];
-            o->velo = vector(0,0,0);
-            o->velo = vector(rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp);
-            o->pos = vector((double)x*(domain-sim->radius*2)/(dim-1) + sim->radius,(double)y*(domain-sim->radius*2)/(dim-1) + sim->radius,domain/2.0);
+            for (int z = 0; z < dim; z++) {
+                obj *o = &sim->objs[x+y*dim+z*dim*dim];
+                o->velo = vector(0,0,0);
+                o->velo = vector(rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp,rand()%(maxcomp*2)-maxcomp);
+                o->pos = vector((double)x*(domain-sim->radius*2)/(dim-1) + sim->radius,(double)y*(domain-sim->radius*2)/(dim-1) + sim->radius,(double)z*(domain-sim->radius*2)/(dim-1) + sim->radius);
+            }
         }
     }
 
